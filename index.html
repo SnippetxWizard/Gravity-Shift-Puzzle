@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Shift Puzzle - Advanced</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        .info { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="info">Use Arrow keys to move | Press 'G' to Flip Gravity | Reach the Goal!</div>
+    <script>
+        const { Engine, Render, Runner, Bodies, Composite, Events, Body, Constraint } = Matter;
+
+        let engine = Engine.create();
+        let world = engine.world;
+
+        let render = Render.create({
+            element: document.body,
+            engine: engine,
+            options: { width: 800, height: 600, wireframes: false, background: '#111' }
+        });
+        Render.run(render);
+        let runner = Runner.create();
+        Runner.run(runner, engine);
+
+        let level = 1;
+
+        function createLevel(level) {
+            Composite.clear(world);
+
+            let player = Bodies.rectangle(100, 500, 40, 40, { restitution: 0.2, friction: 0.1, label: "player", render: { fillStyle: "cyan" } });
+            Composite.add(world, player);
+
+            let ground = Bodies.rectangle(400, 590, 800, 20, { isStatic: true });
+            let leftWall = Bodies.rectangle(0, 300, 20, 600, { isStatic: true });
+            let rightWall = Bodies.rectangle(800, 300, 20, 600, { isStatic: true });
+            let ceiling = Bodies.rectangle(400, 10, 800, 20, { isStatic: true });
+            Composite.add(world, [ground, leftWall, rightWall, ceiling]);
+
+            let goal = Bodies.rectangle(700, 100, 50, 50, { isStatic: true, render: { fillStyle: "yellow" }, label: "goal" });
+            Composite.add(world, goal);
+
+            if (level >= 1) {
+                let platform1 = Bodies.rectangle(300, 450, 150, 20, { isStatic: true });
+                let platform2 = Bodies.rectangle(500, 300, 150, 20, { isStatic: true });
+                Composite.add(world, [platform1, platform2]);
+            }
+
+            if (level >= 2) {
+                let movingPlatform = Bodies.rectangle(400, 200, 150, 20, { isStatic: false });
+                let constraint = Constraint.create({
+                    bodyA: movingPlatform,
+                    pointB: { x: 400, y: 200 },
+                    stiffness: 0.005,
+                    damping: 0.02
+                });
+                Composite.add(world, [movingPlatform, constraint]);
+            }
+
+            if (level >= 3) {
+                let gravityZone = Bodies.rectangle(400, 350, 150, 150, { isStatic: true, render: { fillStyle: "rgba(255,0,0,0.3)" }, label: "gravityZone" });
+                Composite.add(world, gravityZone);
+            }
+
+            if (level >= 4) {
+                let spikes = Bodies.rectangle(550, 550, 100, 20, { isStatic: true, render: { fillStyle: "red" }, label: "spikes" });
+                Composite.add(world, spikes);
+            }
+
+            if (level >= 5) {
+                let portalA = Bodies.rectangle(200, 100, 40, 40, { isStatic: true, render: { fillStyle: "blue" }, label: "portalA" });
+                let portalB = Bodies.rectangle(600, 400, 40, 40, { isStatic: true, render: { fillStyle: "blue" }, label: "portalB" });
+                Composite.add(world, [portalA, portalB]);
+            }
+        }
+
+        createLevel(level);
+
+        let gravityDirection = 1;
+        document.addEventListener("keydown", (event) => {
+            if (event.code === "KeyG") {
+                gravityDirection *= -1;
+                world.gravity.y = gravityDirection;
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            let player = world.bodies.find(b => b.label === "player");
+            if (event.code === "ArrowRight") Body.applyForce(player, { x: player.position.x, y: player.position.y }, { x: 0.02, y: 0 });
+            if (event.code === "ArrowLeft") Body.applyForce(player, { x: player.position.x, y: player.position.y }, { x: -0.02, y: 0 });
+        });
+
+        Events.on(engine, "collisionStart", (event) => {
+            event.pairs.forEach(pair => {
+                if ((pair.bodyA.label === "player" && pair.bodyB.label === "goal") ||
+                    (pair.bodyB.label === "player" && pair.bodyA.label === "goal")) {
+                    alert("Level " + level + " Complete! Next Level Loading...");
+                    level++;
+                    if (level > 5) {
+                        alert("You have completed all levels!");
+                        location.reload();
+                    } else {
+                        createLevel(level);
+                    }
+                }
+                if ((pair.bodyA.label === "player" && pair.bodyB.label === "spikes") ||
+                    (pair.bodyB.label === "player" && pair.bodyA.label === "spikes")) {
+                    alert("Game Over!");
+                    location.reload();
+                }
+                if ((pair.bodyA.label === "player" && pair.bodyB.label === "portalA") ||
+                    (pair.bodyB.label === "player" && pair.bodyA.label === "portalA")) {
+                    Body.setPosition(world.bodies.find(b => b.label === "player"), { x: 600, y: 400 });
+                }
+                if ((pair.bodyA.label === "player" && pair.bodyB.label === "gravityZone") ||
+                    (pair.bodyB.label === "player" && pair.bodyA.label === "gravityZone")) {
+                    world.gravity.y *= -1;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
